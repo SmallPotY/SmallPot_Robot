@@ -5,8 +5,8 @@ import datetime
 class WMS:
 
     def __init__(self):
-        self.db = pymssql.connect(server="121.9.248.170", port="2466", user="vip", password="vip2015",
-                                  database="TTLP_01", charset="UTF-8")
+        self.db = pymssql.connect(server="***", port="2466", user="***", password="***",
+                                  database="***", charset="UTF-8")
 
     def query_rk(self, brand):
 
@@ -14,7 +14,7 @@ class WMS:
 
         btime = str(today - datetime.timedelta(days=7))
         etime = str(today + datetime.timedelta(days=1))
-
+        brand_name = brand
         brand = '%' + brand + '%'
 
         cursor = self.db.cursor()
@@ -51,34 +51,38 @@ class WMS:
         # 也可以使用for循环来迭代查询结果
         # for row in cursor:
         # print("ID=%d, Name=%s" % (row[0], row[1]))
-
         # 关闭连接
         self.db.close()
 
-        return return_text
-
-    def query_ck(self,batch):
-
-        pc = {
-            '4点': ['3:00', '5:00'],
-            '11点': ['10:30', '13:00'],
-            '15点': ['14:00', '16:30'],
-            '19点': ['18:00', '20:00'],
-            '23点': ['22:00', '23:59']
-        }
-
-
-        sj = pc.get(batch)
-
-        if not sj:
-            return '批次不存在，目前批次有[4点,11点,15点,19点,23点]'
+        if return_text:
+            return return_text
+        else:
+            return "品牌[{}]查无信息".format(brand_name)
 
 
 
-        bt = str(datetime.date.today()) + " " + str(sj[0])
+    def query_ck(self,btime,etime):
 
-        et = str(datetime.date.today()) + " " + str(sj[1])
-        print(bt,et)
+        # pc = {
+        #     '4点': ['3:00', '5:00'],
+        #     '11点': ['10:30', '13:00'],
+        #     '15点': ['14:00', '16:30'],
+        #     '19点': ['18:00', '20:00'],
+        #     '23点': ['22:00', '23:59']
+        # }
+
+
+        # sj = pc.get(batch)
+
+        # if not sj:
+        #     return '批次不存在，目前批次有[4点,11点,15点,19点,23点]'
+
+
+
+        # bt = str(datetime.date.today()) + " " + str(sj[0])
+
+        # et = str(datetime.date.today()) + " " + str(sj[1])
+        # print(bt,et)
 
         with open('brand.txt', 'r',encoding='utf-8') as fobj:
             brand = fobj.readlines()
@@ -88,7 +92,8 @@ class WMS:
 
 
         sql = """
-        SELECT SHIP_TO_POSTAL_CODE,SH.SHIP_TO_EMAIL_ADDRESS,ISNULL(SUM(TD.TOTAL_QTY),0) TOTAL_QTY,ISNULL(SUM(TD.TOTAL_QTY),0)-ISNULL(SUM(TD.FROM_QTY),0) FROM_QTY
+        SELECT SH.COMPANY,SH.SHIP_TO,SHIP_TO_POSTAL_CODE,SH.SHIPMENT_ID,SH.SHIP_TO_EMAIL_ADDRESS,sh.user_def1
+        ,SH.INTERNAL_WAVE_NUM,SH.SHIPMENT_TYPE,SH.USER_DEF5,SH.CREATE_DATE_TIME,ISNULL(C.CONC_QTY,0) CONC_QTY, ISNULL(SUM(TD.TOTAL_QTY),0) TOTAL_QTY,ISNULL(SUM(TD.TOTAL_QTY),0)-ISNULL(SUM(TD.FROM_QTY),0) FROM_QTY
         ,ISNULL(B.PACK_QTY,0) PACK_QTY
         FROM SHIPMENT_HEADER SH WITH(NOLOCK) INNER JOIN SHIPMENT_DETAIL SD WITH(NOLOCK)
         ON SH.SHIPMENT_ID=SD.SHIPMENT_ID  LEFT JOIN TASK_DETAIL TD WITH(NOLOCK) ON
@@ -98,16 +103,22 @@ class WMS:
         SELECT SHIPMENT_ID,SUM(QUANTITY) PACK_QTY FROM SHIPPING_CONTAINER WITH(NOLOCK) WHERE 1=1 
         AND PARENT>0 AND STATUS>=800 
         GROUP BY SHIPMENT_ID) B  ON SH.SHIPMENT_ID=B.SHIPMENT_ID
+        LEFT JOIN 
+        (
+        SELECT SHIPMENT_ID,COUNT(1) CONC_QTY FROM SHIPPING_CONTAINER WITH(NOLOCK) WHERE 1=1 
+        AND PARENT=0 AND STATUS>=800 
+        GROUP BY SHIPMENT_ID
+        ) C   ON SH.SHIPMENT_ID=C.SHIPMENT_ID
         WHERE 1=1 
         and SH.CREATE_DATE_TIME>='%s'
         AND SH.CREATE_DATE_TIME<='%s'
-        AND SH.SHIPMENT_TYPE='B2BSO'
-        AND SHIP_TO_POSTAL_CODE IN %s
-        GROUP BY SHIP_TO_POSTAL_CODE,SH.SHIP_TO_EMAIL_ADDRESS,B.PACK_QTY
-        """ % (bt,et,str(brand))
+        AND SHIP_TO_POSTAL_CODE NOT IN %s
+        GROUP BY SH.COMPANY,SH.SHIP_TO,SHIP_TO_POSTAL_CODE,SH.SHIPMENT_ID,SH.SHIP_TO_EMAIL_ADDRESS,sh.user_def1
+        ,SH.INTERNAL_WAVE_NUM,SH.SHIPMENT_TYPE,SH.USER_DEF5,SH.CREATE_DATE_TIME,B.PACK_QTY,C.CONC_QTY
+        HAVING SH.SHIPMENT_TYPE ='B2BSO'
+        """ % (btime,etime,str(brand))
 
-
-
+  
         cursor = self.db.cursor()
         cursor.execute(sql)
         row = cursor.fetchone()
@@ -115,17 +126,16 @@ class WMS:
         zs = 0
         yj = 0
         yb = 0
-        return_text = "品牌|类型|总数|未拣|未包\n"
+        # return_text = "品牌|类型|总数|未拣|未包\n"
         while row:
-            return_text = return_text +  row[0] + ',' + row[1] + ',' + \
-                          str(row[2]) + ',' + str(row[2] - row[3]) + ',' + str(int(row[2] - row[4])) + '\n'
-            zs += row[2]
-            yj += row[3]
-            yb += row[4]
+            # return_text = return_text +  row[0] + ',' + row[1] + ',' + str(row[2]) + ',' + str(row[2] - row[3]) + ',' + str(int(row[2] - row[4])) + '\n'
+            zs += int(row[11])
+            yj += int(row[12])
+            yb += int(row[13])
             row = cursor.fetchone()
 
 
-        return_text += '总订单数：' + str(zs) + ",已拣：" + str(yj) + ",已包：" + str(yb) + '\n' + '数据依赖品牌消息维护，仅供参考'
+        return_text = '订单数：' + str(zs) + ",已拣：" + str(yj) + ",已包：" + str(yb) + '\n' + '{} 至 {}'.format(btime[5:],etime[5:])
         return return_text
 
 
@@ -194,29 +204,125 @@ class WMS:
         GROUP BY TH.USER_STAMP,U.DESCRIPTION
         ) A
         GROUP BY NAME
-        HAVING NAME IN {user}
+        HAVING NAME NOT IN {user}
         ORDER BY NAME
         """.format(bt=btime,et=etime,user=user)
 
-        cursor.execute(sql)
-        row = cursor.fetchone()
-        yield_table = {}
-        while row:
-            name = row[0]   # 姓名
-            RECE_QTY = int(row[1])   #收货
-            PUT_QTY = int(row[2])    # 上架
-            PICK_QTY = int(row[3])   # 拣货
-            PACK_QTY = int(row[4])   # 包装
-            COUNTED_QTY = int(row[5])    # 盘点
-            M_QTY = int(row[6])  # 移库
-            yield_table[name] = [RECE_QTY,PUT_QTY,PICK_QTY,PACK_QTY,COUNTED_QTY,M_QTY]
+        try:
+
+            cursor.execute(sql)
             row = cursor.fetchone()
+            yield_table = {}
+            while row:
+                name = row[0]   # 姓名
+                RECE_QTY = int(row[1])   #收货
+                PUT_QTY = int(row[2])    # 上架
+                PICK_QTY = int(row[3])   # 拣货
+                PACK_QTY = int(row[4])   # 包装
+                COUNTED_QTY = int(row[5])    # 盘点
+                M_QTY = int(row[6])  # 移库
+                yield_table[name] = [RECE_QTY,PUT_QTY,PICK_QTY,PACK_QTY,COUNTED_QTY,M_QTY]
+                row = cursor.fetchone()
 
         # 也可以使用for循环来迭代查询结果
         # for row in cursor:
         # print("ID=%d, Name=%s" % (row[0], row[1]))
-
+        except:
+            yield_table = '执行结果出错'
         # 关闭连接
-        self.db.close()
+        finally:
+            self.db.close()
 
-        return yield_table
+            return yield_table
+
+
+    def chayi(self, btiem, etime):
+
+        cursor = self.db.cursor()
+
+        sql = """
+        SELECT TASK_ID,ASSIGNED_USER,ITEM,ITEM_DESC,TOTAL_QTY,FROM_QTY,TO_QTY,FROM_LOC,CONDITION,REFERENCE_ID,DATE_TIME_STAMP FROM [dbo].[TASK_DETAIL] WHERE 
+        REFERENCE_ID like '%PICK%'  
+        AND CONDITION='OPEN'
+        AND DATE_TIME_STAMP>='{bt}'
+        AND DATE_TIME_STAMP<='{et}'
+        """.format(bt=btiem, et=etime)
+
+        # print(sql)
+
+        chayi = [['任务号', '最后操作人','条码','剩余数','货位','拣货单号']]
+        try:
+            cursor.execute(sql)
+            row = cursor.fetchone()
+
+            while row:
+                item=[]
+                row = cursor.fetchone()
+                # print(row)
+                item.append(row[0]) # 任务号
+                item.append(row[1]) # 最后操作人
+                item.append(row[2]) # 条码
+                item.append(int(row[5])) # 剩余数
+                item.append(row[7]) # 货位
+                item.append(row[9]) # 单号
+                # print(item)
+
+                chayi.append(item)
+
+        except:
+            pass
+        finally:
+            self.db.close()
+            return chayi
+
+
+
+
+
+    def kc(self,sku):
+
+        cursor = self.db.cursor()
+
+        sql="""
+        SELECT LI.WAREHOUSE,LI.COMPANY,LI.LOCATION,LI.ITEM,LI.ITEM_DESC,LI.ON_HAND_QTY,
+        LI.IN_TRANSIT_QTY,LI.attribute3,IT.BRAND,
+        ALLOCATED_QTY,INVENTORY_STS,IT.ITEM_CATEGORY1,ITEM_CATEGORY2,ITEM_CATEGORY3
+         FROM LOCATION_INVENTORY LI
+        INNER JOIN ITEM IT
+        ON LI.ITEM=IT.ITEM AND LI.COMPANY=IT.COMPANY
+        WHERE 1=1 
+        AND LI.ITEM='{}'
+        """.format(sku)
+
+        sku_item = [['条码', '货位','在库数','已分配数','描述','品牌']]
+        try:
+            cursor.execute(sql)
+            row = cursor.fetchone()
+
+            while row:
+                item=[]
+                item.append(row[3]) # 条码
+                item.append(row[2]) # 货位
+                item.append(row[5]) # 在库数
+                item.append(row[9]) # 已分配数
+                item.append(row[4]) # 描述
+                item.append(row[8]) # 品牌
+
+                sku_item.append(item)
+                row = cursor.fetchone()
+                # print(row)
+
+
+        except:
+            pass
+        finally:
+            self.db.close()
+            return sku_item
+
+
+if __name__ == '__main__':
+    db= WMS()
+
+    n =  db.kc('86600313311')
+    print(n)
+    input('jj')
