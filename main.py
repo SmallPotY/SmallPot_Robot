@@ -55,8 +55,28 @@ def tests(msg):
     if '查询出货=' in Content:
         batch = Content.replace("查询出货=", "")
         query = SQL.WMS()
-        return_content = query.query_ck(batch)
+
+        batch = batch.split('.')
+        if len(batch) !=2:
+            itchat.send("查询参数不符，参数格式：开始时间.结束时间", msg['FromUserName'])
+            return
+        jday = datetime.datetime.now()
+        qday = datetime.datetime.now() + datetime.timedelta(days=-1)
+        jday = jday.strftime('%Y-%m-%d')
+        qday = qday.strftime('%Y-%m-%d')     
+
+        
+        if int(batch[0]) < 0:
+            btime = qday + " " + str(abs(int(batch[0]))) + ":00"
+        else:
+            btime = jday + " " + str(abs(int(batch[0]))) + ":00"
+
+        etime = jday + " " + str(abs(int(batch[1]))) + ":00"
+        print(btime,etime)
+        return_content = query.query_ck(btime,etime)
         itchat.send(return_content, msg['FromUserName'])
+
+
 
     if '查询产量=' in Content:
         work_type = Content.replace("查询产量=", "")
@@ -94,52 +114,127 @@ def tests(msg):
 @itchat.msg_register(TEXT, isGroupChat=True)
 def text_reply(msg):
     Content = msg['Text']
+    NickName = msg['User']['NickName']
+    if NickName == '搬仓管理群':
+        if '查询进度=' in Content:
+            brand = Content.replace("查询进度=", "")
+            itchat.send('{}入库进度查询中'.format(brand), msg['FromUserName'])
+            query = SQL.WMS()
+            return_content = query.query_rk(brand)
+            itchat.send(return_content, msg['FromUserName'])
 
-    if '查询进度=' in Content:
-        brand = Content.replace("查询进度=", "")
-        itchat.send('{}入库进度查询中'.format(brand), msg['FromUserName'])
-        query = SQL.WMS()
-        return_content = query.query_rk(brand)
-        itchat.send(return_content, msg['FromUserName'])
+        if '查询出货=' in Content:
+            batch = Content.replace("查询出货=", "")
+            query = SQL.WMS()
 
-    if '查询出货=' in Content:
-        batch = Content.replace("查询出货=", "")
-        query = SQL.WMS()
-        return_content = query.query_ck(batch)
-        itchat.send(return_content, msg['FromUserName'])
+            batch = batch.split('.')
 
-    if '查询产量=' in Content:
 
-        work_type = Content.replace("查询产量=", "")
-        work_type = work_type.split('.')
-        print(work_type)
-        if len(work_type) != 3:
-            itchat.send("查询参数不符，参数格式：开始时间.结束时间.操作类型", msg['FromUserName'])
-            return
+            if len(batch) !=2:
+                itchat.send("查询参数不符，参数格式：开始时间.结束时间", msg['FromUserName'])
+                return
+            jday = datetime.datetime.now()
+            qday = datetime.datetime.now() + datetime.timedelta(days=-1)
+            jday = jday.strftime('%Y-%m-%d')
+            qday = qday.strftime('%Y-%m-%d')
 
-        jday = datetime.datetime.now()
-        qday = datetime.datetime.now() + datetime.timedelta(days=-1)
-        jday = jday.strftime('%Y-%m-%d')
-        qday = qday.strftime('%Y-%m-%d')
 
-        if int(work_type[0]) < 0:
-            btime = qday + " " + str(abs(int(work_type[0]))) + ":00"
-        else:
-            btime = jday + " " + str(abs(int(work_type[0]))) + ":00"
+            if int(batch[0]) < 0:
+                btime = qday + " " + str(abs(int(batch[0]))) + ":00"
+            else:
+                btime = jday + " " + str(abs(int(batch[0]))) + ":00"
 
-        etime = jday + " " + str(abs(int(work_type[1]))) + ":00"
+            etime = jday + " " + str(abs(int(batch[1]))) + ":00"
+            print(btime,etime)
+            return_content = query.query_ck(btime,etime)
+            itchat.send(return_content, msg['FromUserName'])
 
-        itchat.send("{}至{},{}产量查询中".format(btime, etime, work_type[2]), msg['FromUserName'])
+        if '查询产量=' in Content:
 
-        fname = datetime.datetime.now()
-        fname = fname.strftime('%Y%m%d%H%I%M%S') + ".png"
+            work_type = Content.replace("查询产量=", "")
+            work_type = work_type.split('.')
+            print(work_type)
+            if len(work_type) != 3:
+                itchat.send("查询参数不符，参数格式：开始时间.结束时间.操作类型", msg['FromUserName'])
+                return
 
-        n = model.yield_type(btime, etime, work_type[2], fname)
-        if n == "操作类型不存在！目前可供查询：收货,上架,拣货,包装,盘点,移库":
-            itchat.send(n, msg['FromUserName'])
-        else:
-            itchat.send_image(fname, msg['FromUserName'])
-            os.remove(fname)
+            jday = datetime.datetime.now()
+            qday = datetime.datetime.now() + datetime.timedelta(days=-1)
+            jday = jday.strftime('%Y-%m-%d')
+            qday = qday.strftime('%Y-%m-%d')
+
+            if int(work_type[0]) < 0:
+                btime = qday + " " + str(abs(int(work_type[0]))) + ":00"
+            else:
+                btime = jday + " " + str(abs(int(work_type[0]))) + ":00"
+
+            etime = jday + " " + str(abs(int(work_type[1]))) + ":00"
+
+            itchat.send("{}至{},{}产量查询中".format(btime, etime, work_type[2]), msg['FromUserName'])
+
+            fname = datetime.datetime.now()
+            fname = fname.strftime('%Y%m%d%H%I%M%S') + ".png"
+
+            n = model.yield_type(btime, etime, work_type[2], fname)
+            
+            if n == "操作类型不存在！目前可供查询：收货,上架,拣货,包装,盘点,移库":
+                itchat.send(n, msg['FromUserName'])
+            else:
+                itchat.send_image(fname, msg['FromUserName'])
+                os.remove(fname)
+
+
+
+        if '拣货差异=' in Content:
+            batch = Content.replace("拣货差异=", "")
+            query = SQL.WMS()
+
+            batch = batch.split('.')
+
+            if len(batch) !=2:
+                itchat.send("查询参数不符，参数格式：开始时间.结束时间", msg['FromUserName'])
+                return
+                
+            jday = datetime.datetime.now()
+            qday = datetime.datetime.now() + datetime.timedelta(days=-1)
+            jday = jday.strftime('%Y-%m-%d')
+            qday = qday.strftime('%Y-%m-%d')
+
+            if int(batch[0]) < 0:
+                btime = qday + " " + str(abs(int(batch[0]))) + ":00"
+            else:
+                btime = jday + " " + str(abs(int(batch[0]))) + ":00"
+
+            etime = jday + " " + str(abs(int(batch[1]))) + ":00"
+
+            row = query.chayi(btime,etime)
+            if len(row)==1:
+                itchat.send('拣货已完成', msg['FromUserName'])
+                return
+            else:
+                itchat.send('拣货差异生成中', msg['FromUserName'])
+                model.chayi(row)
+                itchat.send_image('CHAYI.PNG', msg['FromUserName'])
+                os.remove('CHAYI.PNG')
+
+        if '条码库存=' in Content:
+            batch = Content.replace("条码库存=", "")
+            query = SQL.WMS()
+
+            row = query.kc(batch)
+
+            if len(row) == 1:
+                itchat.send('{}查无库存'.format(batch), msg['FromUserName'])
+                return
+            else:
+                model.chayi(row)
+                itchat.send_image('CHAYI.PNG', msg['FromUserName'])
+                os.remove('CHAYI.PNG')
+
+
+
+
+
 
 
 
