@@ -1,18 +1,25 @@
 import pymssql
 import datetime
+import json
+
 
 
 class WMS:
 
-    def __init__(self):
-        self.db = pymssql.connect(server="***", port="2466", user="***", password="***",
-                                  database="***", charset="UTF-8")
+    def __init__(self,group):
+
+        with open("config.json","r",encoding="utf-8") as f:
+            n = json.load(f)
+            self.agrs = n[group]
+
+        self.db = pymssql.connect(server=self.agrs["server"], port=self.agrs["port"], user=self.agrs["user"], password=self.agrs["password"],
+                                  database=self.agrs["database"], charset="UTF-8")
 
     def query_rk(self, brand):
 
         today = datetime.date.today()
 
-        btime = str(today - datetime.timedelta(days=7))
+        btime = str(today - datetime.timedelta(days=25))
         etime = str(today + datetime.timedelta(days=1))
         brand_name = brand
         brand = '%' + brand + '%'
@@ -84,11 +91,7 @@ class WMS:
         # et = str(datetime.date.today()) + " " + str(sj[1])
         # print(bt,et)
 
-        with open('brand.txt', 'r',encoding='utf-8') as fobj:
-            brand = fobj.readlines()
-
-        brand = tuple([i.strip('\n') for i in brand])
-
+        brand = tuple(self.agrs['brand'])
 
 
         sql = """
@@ -143,9 +146,9 @@ class WMS:
     def yield_table(self,btime,etime):
 
 
-        with open('user.txt', 'r',encoding='utf-8') as fobj:
-            user = fobj.readlines()
-            user = tuple([i.strip('\n') for i in user])
+
+        user = tuple(self.agrs['username'])
+
 
         cursor = self.db.cursor()
 
@@ -276,9 +279,6 @@ class WMS:
             return chayi
 
 
-
-
-
     def kc(self,sku):
 
         cursor = self.db.cursor()
@@ -320,9 +320,69 @@ class WMS:
             return sku_item
 
 
-if __name__ == '__main__':
-    db= WMS()
+    def query_tg(self,brand):
+        
+        today = datetime.date.today()
 
-    n =  db.kc('86600313311')
+        btime = str(today - datetime.timedelta(days=25))
+        etime = str(today + datetime.timedelta(days=1))
+        brand_name = brand
+        brand = '%' + brand + '%'
+
+        cursor = self.db.cursor()
+
+        sql = """
+        SELECT SH.COMPANY,SH.SHIP_TO,SHIP_TO_POSTAL_CODE,SH.SHIPMENT_ID,SH.SHIP_TO_EMAIL_ADDRESS,sh.user_def1
+        ,SH.INTERNAL_WAVE_NUM,SH.SHIPMENT_TYPE,SH.USER_DEF5,SH.CREATE_DATE_TIME,ISNULL(C.CONC_QTY,0) CONC_QTY, ISNULL(SUM(TD.TOTAL_QTY),0) TOTAL_QTY,ISNULL(SUM(TD.TOTAL_QTY),0)-ISNULL(SUM(TD.FROM_QTY),0) FROM_QTY
+        ,ISNULL(B.PACK_QTY,0) PACK_QTY
+        FROM SHIPMENT_HEADER SH WITH(NOLOCK) INNER JOIN SHIPMENT_DETAIL SD WITH(NOLOCK)
+        ON SH.SHIPMENT_ID=SD.SHIPMENT_ID  LEFT JOIN TASK_DETAIL TD WITH(NOLOCK) ON
+        SD.SHIPMENT_ID=TD.REFERENCE_ID AND SD.INTERNAL_SHIPMENT_LINE_NUM=TD.REFERENCE_LINE_NUM
+        LEFT JOIN 
+        (
+        SELECT SHIPMENT_ID,SUM(QUANTITY) PACK_QTY FROM SHIPPING_CONTAINER WITH(NOLOCK) WHERE 1=1 
+        AND PARENT>0 AND STATUS>=800 
+        GROUP BY SHIPMENT_ID) B  ON SH.SHIPMENT_ID=B.SHIPMENT_ID
+        LEFT JOIN 
+        (
+        SELECT SHIPMENT_ID,COUNT(1) CONC_QTY FROM SHIPPING_CONTAINER WITH(NOLOCK) WHERE 1=1 
+        AND PARENT=0 AND STATUS>=800 
+        GROUP BY SHIPMENT_ID
+        ) C   ON SH.SHIPMENT_ID=C.SHIPMENT_ID
+        WHERE 1=1 
+        and SH.CREATE_DATE_TIME>='%s'
+        AND SH.CREATE_DATE_TIME<='%s'
+        AND SHIP_TO_POSTAL_CODE NOT IN %s
+        GROUP BY SH.COMPANY,SH.SHIP_TO,SHIP_TO_POSTAL_CODE,SH.SHIPMENT_ID,SH.SHIP_TO_EMAIL_ADDRESS,sh.user_def1
+        ,SH.INTERNAL_WAVE_NUM,SH.SHIPMENT_TYPE,SH.USER_DEF5,SH.CREATE_DATE_TIME,B.PACK_QTY,C.CONC_QTY
+        HAVING SH.SHIPMENT_TYPE ='B2BSO'
+        """ % (btime,etime,str(brand))
+
+  
+        cursor = self.db.cursor()
+        cursor.execute(sql)
+        row = cursor.fetchone()
+
+        zs = 0
+        yj = 0
+        yb = 0
+        # return_text = "品牌|类型|总数|未拣|未包\n"
+        while row:
+            # return_text = return_text +  row[0] + ',' + row[1] + ',' + str(row[2]) + ',' + str(row[2] - row[3]) + ',' + str(int(row[2] - row[4])) + '\n'
+            zs += int(row[11])
+            yj += int(row[12])
+            yb += int(row[13])
+            row = cursor.fetchone()
+
+
+        return_text = '订单数：' + str(zs) + ",已拣：" + str(yj) + ",已包：" + str(yb) + '\n' + '{} 至 {}'.format(btime[5:],etime[5:])
+        return return_text     
+
+
+
+if __name__ == '__main__':
+    db= WMS('搬仓管理群')
+
+    n =  db.query_rk('北极绒')
     print(n)
     input('jj')
