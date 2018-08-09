@@ -6,7 +6,7 @@ import re
 from prettytable import PrettyTable
 from PIL import Image, ImageDraw, ImageFont
 
-def yield_type(btime, etime, work_type, fname):
+def yield_type(btime, etime, work_type, fname,NickName):
     lx = {
         '收货': [],
         '上架': [],
@@ -19,7 +19,7 @@ def yield_type(btime, etime, work_type, fname):
     if work_type not in lx:
         return "操作类型不存在！目前可供查询：收货,上架,拣货,包装,盘点,移库"
 
-    db = SQL.WMS()
+    db = SQL.WMS(NickName)
 
     data = db.yield_table(btime, etime)
 
