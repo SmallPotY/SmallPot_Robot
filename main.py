@@ -163,6 +163,36 @@ def text_reply(msg):
                 itchat.send_image('CHAYI.PNG', msg['FromUserName'])
                 os.remove('CHAYI.PNG')
 
+        if '查询退供=' in Content:
+            brand = Content.replace("查询退供=","")
+            query = SQL.WMS(NickName)
+            row = query.query_tg(brand)
+            if len(row) == 1:
+                itchat.send('【{}】近30天内无抛单'.format(brand), msg['FromUserName'])
+            else:
+                model.chayi(row)
+                itchat.send_image('CHAYI.PNG', msg['FromUserName'])
+                os.remove('CHAYI.PNG')
+
+        if '未收汇总=' in Content:
+            day = int(Content.replace("未收汇总=",""))
+            query = SQL.WMS(NickName)
+            row = query.yanshou(day=day)
+
+            itchat.send('近{}天入库单查询中。。。'.format(day), msg['FromUserName'])
+            model.chayi(row)
+            itchat.send_image('CHAYI.PNG', msg['FromUserName'])
+            os.remove('CHAYI.PNG')
+
+        if '待上架汇总=' in Content:
+            day = int(Content.replace("待上架汇总=",""))
+            query = SQL.WMS(NickName)
+            row = query.shangjia(day)
+
+            itchat.send('近{}天待上架查询。。。'.format(day), msg['FromUserName'])
+            model.chayi(row)
+            itchat.send_image('CHAYI.PNG', msg['FromUserName'])
+            os.remove('CHAYI.PNG')
 
 
 # 在auto_login()里面提供一个True，即hotReload=True
