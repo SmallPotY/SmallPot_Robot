@@ -238,7 +238,6 @@ class WMS:
 
             return yield_table
 
-
     def chayi(self, btiem, etime):
 
         cursor = self.db.cursor()
@@ -324,7 +323,7 @@ class WMS:
         
         today = datetime.date.today()
 
-        btime = str(today - datetime.timedelta(days=25))
+        btime = str(today - datetime.timedelta(days=30))
         etime = str(today + datetime.timedelta(days=1))
         brand_name = brand
         brand = '%' + brand + '%'
@@ -352,31 +351,128 @@ class WMS:
         WHERE 1=1 
         and SH.CREATE_DATE_TIME>='%s'
         AND SH.CREATE_DATE_TIME<='%s'
-        AND SHIP_TO_POSTAL_CODE NOT IN %s
+        AND SHIP_TO_POSTAL_CODE like '%s'
+        AND SH.SHIPMENT_TYPE <>'B2BSO'
         GROUP BY SH.COMPANY,SH.SHIP_TO,SHIP_TO_POSTAL_CODE,SH.SHIPMENT_ID,SH.SHIP_TO_EMAIL_ADDRESS,sh.user_def1
         ,SH.INTERNAL_WAVE_NUM,SH.SHIPMENT_TYPE,SH.USER_DEF5,SH.CREATE_DATE_TIME,B.PACK_QTY,C.CONC_QTY
-        HAVING SH.SHIPMENT_TYPE ='B2BSO'
+        HAVING SH.SHIPMENT_TYPE in ('调拨出库','残次出库','退供出库','增值出库')
         """ % (btime,etime,str(brand))
 
-  
-        cursor = self.db.cursor()
-        cursor.execute(sql)
-        row = cursor.fetchone()
-
-        zs = 0
-        yj = 0
-        yb = 0
-        # return_text = "品牌|类型|总数|未拣|未包\n"
-        while row:
-            # return_text = return_text +  row[0] + ',' + row[1] + ',' + str(row[2]) + ',' + str(row[2] - row[3]) + ',' + str(int(row[2] - row[4])) + '\n'
-            zs += int(row[11])
-            yj += int(row[12])
-            yb += int(row[13])
+        try:
+            cursor = self.db.cursor()
+            cursor.execute(sql)
             row = cursor.fetchone()
 
+            return_text = [['单号','品牌','类型','抛单数','已拣数','已包数','差异数']]
+            while row:
+                item = []
+                item.append(row[3])
+                item.append(row[2])
+                item.append(row[4])
+                item.append(int(row[11]))
+                item.append(int(row[12]))
+                item.append(int(row[13]))
+                cy = int(row[11]-row[13])
+                item.append(cy)
+                return_text.append(item)
+                row = cursor.fetchone()
+        except:
+            pass
+        finally:
+            self.db.close()
+            return return_text     
 
-        return_text = '订单数：' + str(zs) + ",已拣：" + str(yj) + ",已包：" + str(yb) + '\n' + '{} 至 {}'.format(btime[5:],etime[5:])
-        return return_text     
+
+
+
+    def yanshou(self,day=7):
+
+        today = datetime.date.today()
+        btime = str(today - datetime.timedelta(days=day))
+        etime = str(today + datetime.timedelta(days=1))
+
+        sql = """
+        SELECT RH.USER_DEF3,RD.RECEIPT_ID,RH.TOTAL_QTY,RH.TOTAL_LINES,RH.CREATE_DATE_TIME,RH.COMPANY,
+        SUM(ISNULL(RC.CONVERTED_QTY,0)) CONVERTED_QTY,
+        SUM(CASE WHEN RC.INVENTORY_STS!='aa' THEN ISNULL(RC.QUANTITY,0) ELSE 0 END) QTY
+        FROM RECEIPT_HEADER RH WITH(NOLOCK) LEFT JOIN 
+        RECEIPT_DETAIL RD WITH(NOLOCK) ON RH.RECEIPT_ID=RD.RECEIPT_ID
+        LEFT JOIN  RECEIPT_CONTAINER RC WITH(NOLOCK) ON RD.INTERNAL_RECEIPT_LINE_NUM=RC.INTERNAL_RECEIPT_LINE_NUM
+        WHERE 1=1
+        AND  RH.CREATE_DATE_TIME>='{btime}'
+        AND RH.CREATE_DATE_TIME<='{etime}'
+        GROUP BY RH.USER_DEF3,RD.RECEIPT_ID,RH.TOTAL_QTY,RH.TOTAL_LINES,RH.CREATE_DATE_TIME,RH.COMPANY
+        order by QTY desc
+        """.format(btime=btime,etime=etime)
+        # print(sql)
+        try:
+            cursor = self.db.cursor()
+            cursor.execute(sql)
+            row = cursor.fetchone()
+
+            return_text = [['单号','抛单数','已收','未收']]
+            ws = 0
+            while row:
+                # print(row)
+                item = []
+                item.append(row[1])
+                item.append(row[2])
+                item.append(row[7])
+                item.append(row[2]-row[7])
+                if row[2] - row[7]:
+                    return_text.append(item)
+                row = cursor.fetchone()
+        except:
+            pass
+        finally:
+            self.db.close()
+            return return_text
+
+
+    def shangjia(self,day=7):
+
+        today = datetime.date.today()
+        btime = str(today - datetime.timedelta(days=day))
+        etime = str(today + datetime.timedelta(days=1))
+
+        sql = """
+        SELECT RH.USER_DEF3,RD.RECEIPT_ID,RH.TOTAL_QTY,RH.TOTAL_LINES,RH.CREATE_DATE_TIME,RH.COMPANY,
+        SUM(ISNULL(RC.CONVERTED_QTY,0)) CONVERTED_QTY,
+        SUM(CASE WHEN RC.INVENTORY_STS!='aa' THEN ISNULL(RC.QUANTITY,0) ELSE 0 END) QTY
+        FROM RECEIPT_HEADER RH WITH(NOLOCK) LEFT JOIN 
+        RECEIPT_DETAIL RD WITH(NOLOCK) ON RH.RECEIPT_ID=RD.RECEIPT_ID
+        LEFT JOIN  RECEIPT_CONTAINER RC WITH(NOLOCK) ON RD.INTERNAL_RECEIPT_LINE_NUM=RC.INTERNAL_RECEIPT_LINE_NUM
+        WHERE 1=1
+        AND  RH.CREATE_DATE_TIME>='{btime}'
+        AND RH.CREATE_DATE_TIME<='{etime}'
+        GROUP BY RH.USER_DEF3,RD.RECEIPT_ID,RH.TOTAL_QTY,RH.TOTAL_LINES,RH.CREATE_DATE_TIME,RH.COMPANY
+        order by CONVERTED_QTY desc
+        """.format(btime=btime,etime=etime)
+        # print(sql)
+        try:
+            cursor = self.db.cursor()
+            cursor.execute(sql)
+            row = cursor.fetchone()
+
+            return_text = [['单号','抛单数','已收','未上架','已上架']]
+            # ws = 0
+            while row:
+                # print(row)
+                item = []
+                item.append(row[1])
+                item.append(row[2])
+                item.append(row[7])
+                item.append(row[6])
+                item.append(row[7]-row[6])
+                if row[6]:
+                    return_text.append(item)
+                row = cursor.fetchone()
+        except:
+            pass
+        finally:
+            self.db.close()
+            return return_text
+
 
 
 
