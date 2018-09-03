@@ -20,3 +20,5 @@
 ```
 
 ![示例图片](https://raw.githubusercontent.com/SmallPotY/SmallPot_Robot/master/Screenshots/20180615141943.jpg)
+
+![示例图片](https://raw.githubusercontent.com/SmallPotY/SmallPot_Robot/master/fname.png)
