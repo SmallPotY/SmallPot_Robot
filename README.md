@@ -7,7 +7,7 @@
 - pymssql
 - prettytable
 - PIL
-
+```
 查询语句
 查询进度={brand}
 查询出货={begin_tiem}.{end_time}
@@ -17,5 +17,6 @@
 查询退供={order_id}
 未收汇总={days} 
 待上架汇总={days}
+```
 
 ![示例图片](https://raw.githubusercontent.com/SmallPotY/SmallPot_Robot/master/Screenshots/20180615141943.jpg)
