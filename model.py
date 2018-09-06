@@ -53,7 +53,7 @@ def yield_type(btime, etime, work_type, fname,NickName):
     loan_grade = cl
     # 图表字体为华文细黑，字号为15
     plt.rc('font', family='SimHei', size=20)
-
+    # plt.rc('font', family='SIMHEI', size=20)   # Linux中字体文件名要用大写 'SIMHEI'
     # 创建柱状图，数据源x,y来源，设置颜色，透明度和外边框颜色
     plt.bar(user_list, loan_grade, color='#99CC01', alpha=0.8, align='center', edgecolor='white')
     # 设置x轴标签
@@ -98,8 +98,12 @@ def chayi(row):
     space = 5
 
     # PIL模块中，确定写入到图片中的文本字体
-    # font = ImageFont.truetype( 15, encoding='utf-8')
+    
     font = ImageFont.truetype('simsun.ttc', 24, encoding='utf-8')
+    
+    # linux 中字体要使用绝对路径
+    # font = ImageFont.truetype('/usr/share/fonts/deepin-font-install/SimHei/SIMHEI.TTF', 24, encoding='utf-8')
+    
     # Image模块创建一个图片对象
     im = Image.new('RGB', (10, 10), (255, 255, 255))
     # ImageDraw向图片中进行操作，写入文字或者插入线条都可以
