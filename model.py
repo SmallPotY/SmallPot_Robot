@@ -1,6 +1,8 @@
 # coding=utf-8
 import numpy as np
 import SQL
+import matplotlib as mpl
+mpl.use('Agg')      # 解决部分系统matplotlib无法显示图片的问题
 import matplotlib.pyplot as plt
 import re
 from prettytable import PrettyTable
