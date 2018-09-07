@@ -68,7 +68,7 @@ class WMS:
 
 
 
-    def query_ck(self,btime,etime):
+    def query_ck(self,btime,etime,type):
 
         # pc = {
         #     '4点': ['3:00', '5:00'],
@@ -77,8 +77,16 @@ class WMS:
         #     '19点': ['18:00', '20:00'],
         #     '23点': ['22:00', '23:59']
         # }
+        guolv = ''
 
-
+        if type == '3PL':
+            guolv = "HAVING SH.SHIPMENT_TYPE ='B2BSO' AND sh.user_def1='3PL'"
+        elif type =='JIT':
+            guolv = "HAVING SH.SHIPMENT_TYPE ='B2BSO' AND sh.user_def1='JIT'"
+        elif type == 'B2C':
+            guolv = "HAVING SH.SHIPMENT_TYPE ='销售出库' AND sh.user_def1 not in ('JIT','3PL')"
+        else:
+            return "类型不存在!（3PL,JIT,B2C)"
         # sj = pc.get(batch)
 
         # if not sj:
@@ -118,9 +126,10 @@ class WMS:
         AND SHIP_TO_POSTAL_CODE NOT IN %s
         GROUP BY SH.COMPANY,SH.SHIP_TO,SHIP_TO_POSTAL_CODE,SH.SHIPMENT_ID,SH.SHIP_TO_EMAIL_ADDRESS,sh.user_def1
         ,SH.INTERNAL_WAVE_NUM,SH.SHIPMENT_TYPE,SH.USER_DEF5,SH.CREATE_DATE_TIME,B.PACK_QTY,C.CONC_QTY
-        HAVING SH.SHIPMENT_TYPE ='B2BSO'
-        """ % (btime,etime,str(brand))
+        %s
+        """ % (btime,etime,str(brand),guolv)
 
+        print(sql)
   
         cursor = self.db.cursor()
         cursor.execute(sql)
@@ -138,8 +147,9 @@ class WMS:
             row = cursor.fetchone()
 
 
-        return_text = '订单数：' + str(zs) + ",已拣：" + str(yj) + ",已包：" + str(yb) + '\n' + '{} 至 {}'.format(btime[5:],etime[5:])
+        return_text = '{}订单数：'.format(type) + str(zs) + ",已拣：" + str(yj) + ",已包：" + str(yb) + '\n' + '{} 至 {}'.format(btime[5:],etime[5:])
         return return_text
+
 
 
 
