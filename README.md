@@ -10,8 +10,8 @@
 ```
 查询语句
 查询进度={brand}
-查询出货={begin_tiem}.{end_time}
-查询产量={begin_tiem}.{end_time}.{type}
+查询出货={begin_tiem}.{end_time}.{type:['3PL','JIT','B2C']} 
+查询产量={begin_tiem}.{end_time}.{type:['收货','上架','拣货','包装','盘点','移库']}  
 拣货差异={begin_tiem}.{end_time}
 条码库存={item}
 查询退供={order_id}
