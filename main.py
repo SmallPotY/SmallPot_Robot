@@ -54,21 +54,20 @@ def text_reply(msg):
             return_content = query.query_rk(brand)
             itchat.send(return_content, msg['FromUserName'])
 
-        if '查询出货=' in Content:
+         if '查询出货=' in Content:
             batch = Content.replace("查询出货=", "")
             query = SQL.WMS(NickName)
 
             batch = batch.split('.')
 
 
-            if len(batch) !=2:
-                itchat.send("查询参数不符，参数格式：开始时间.结束时间", msg['FromUserName'])
+            if len(batch) !=3:
+                itchat.send("查询参数不符，参数格式：开始时间.结束时间.类型", msg['FromUserName'])
                 return
             jday = datetime.datetime.now()
             qday = datetime.datetime.now() + datetime.timedelta(days=-1)
             jday = jday.strftime('%Y-%m-%d')
             qday = qday.strftime('%Y-%m-%d')
-
 
             if int(batch[0]) < 0:
                 btime = qday + " " + str(abs(int(batch[0]))) + ":00"
@@ -77,8 +76,9 @@ def text_reply(msg):
 
             etime = jday + " " + str(abs(int(batch[1]))) + ":00"
             print(btime,etime)
-            return_content = query.query_ck(btime,etime)
+            return_content = query.query_ck(btime,etime,batch[2])
             itchat.send(return_content, msg['FromUserName'])
+
 
         if '查询产量=' in Content:
 
