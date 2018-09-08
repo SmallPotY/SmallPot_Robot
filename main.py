@@ -42,11 +42,25 @@ msg['CreateTime']           时间戳
 '''
 
 
+def change_time(input_time):
+    along = -1 * int(input_time.count('-'))
+
+    new_day = datetime.datetime.now() + datetime.timedelta(days=along)
+    new_day = new_day.strftime('%Y-%m-%d')
+
+    input_time = input_time.replace("-", "")
+
+    result = new_day + ' ' + input_time + ":00"
+
+    return result
+
+
+
 @itchat.msg_register(TEXT, isGroupChat=True)
 def text_reply(msg):
     Content = msg['Text']
     NickName = msg['User']['NickName']
-    if NickName in ['搬仓管理群','华中管理层沟通群']:
+    if NickName in ['搬仓管理群','华中管理层沟通群','15号仓天图查询群']:
         if '查询进度=' in Content:
             brand = Content.replace("查询进度=", "")
             itchat.send('{}入库进度查询中'.format(brand), msg['FromUserName'])
@@ -54,7 +68,7 @@ def text_reply(msg):
             return_content = query.query_rk(brand)
             itchat.send(return_content, msg['FromUserName'])
 
-         if '查询出货=' in Content:
+        if '查询出货=' in Content:
             batch = Content.replace("查询出货=", "")
             query = SQL.WMS(NickName)
 
@@ -64,21 +78,13 @@ def text_reply(msg):
             if len(batch) !=3:
                 itchat.send("查询参数不符，参数格式：开始时间.结束时间.类型", msg['FromUserName'])
                 return
-            jday = datetime.datetime.now()
-            qday = datetime.datetime.now() + datetime.timedelta(days=-1)
-            jday = jday.strftime('%Y-%m-%d')
-            qday = qday.strftime('%Y-%m-%d')
 
-            if int(batch[0]) < 0:
-                btime = qday + " " + str(abs(int(batch[0]))) + ":00"
-            else:
-                btime = jday + " " + str(abs(int(batch[0]))) + ":00"
+            btime = change_time(batch[0])
+            etime = change_time(batch[1])
 
-            etime = jday + " " + str(abs(int(batch[1]))) + ":00"
             print(btime,etime)
             return_content = query.query_ck(btime,etime,batch[2])
             itchat.send(return_content, msg['FromUserName'])
-
 
         if '查询产量=' in Content:
 
@@ -89,17 +95,8 @@ def text_reply(msg):
                 itchat.send("查询参数不符，参数格式：开始时间.结束时间.操作类型", msg['FromUserName'])
                 return
 
-            jday = datetime.datetime.now()
-            qday = datetime.datetime.now() + datetime.timedelta(days=-1)
-            jday = jday.strftime('%Y-%m-%d')
-            qday = qday.strftime('%Y-%m-%d')
-
-            if int(work_type[0]) < 0:
-                btime = qday + " " + str(abs(int(work_type[0]))) + ":00"
-            else:
-                btime = jday + " " + str(abs(int(work_type[0]))) + ":00"
-
-            etime = jday + " " + str(abs(int(work_type[1]))) + ":00"
+            btime=change_time(work_type[0])
+            etime=change_time(work_type[1])
 
             itchat.send("{}至{},{}产量查询中".format(btime, etime, work_type[2]), msg['FromUserName'])
 
@@ -126,17 +123,8 @@ def text_reply(msg):
                 itchat.send("查询参数不符，参数格式：开始时间.结束时间", msg['FromUserName'])
                 return
                 
-            jday = datetime.datetime.now()
-            qday = datetime.datetime.now() + datetime.timedelta(days=-1)
-            jday = jday.strftime('%Y-%m-%d')
-            qday = qday.strftime('%Y-%m-%d')
-
-            if int(batch[0]) < 0:
-                btime = qday + " " + str(abs(int(batch[0]))) + ":00"
-            else:
-                btime = jday + " " + str(abs(int(batch[0]))) + ":00"
-
-            etime = jday + " " + str(abs(int(batch[1]))) + ":00"
+            btime = batch[0]
+            etime = batch[1]
 
             row = query.chayi(btime,etime)
             if len(row)==1:
@@ -152,9 +140,7 @@ def text_reply(msg):
         if '条码库存=' in Content:
             batch = Content.replace("条码库存=", "")
             query = SQL.WMS(NickName)
-
             row = query.kc(batch)
-
             if len(row) == 1:
                 itchat.send('{}查无库存'.format(batch), msg['FromUserName'])
                 return
@@ -195,9 +181,10 @@ def text_reply(msg):
             os.remove('CHAYI.PNG')
 
 
+itchat.auto_login(enableCmdQR=2)
 # 在auto_login()里面提供一个True，即hotReload=True
 # 即可保留登陆状态
 # 即使程序关闭，一定时间内重新开启也可以不用重新扫码
-itchat.auto_login(hotReload=True)
 # itchat.auto_login(hotReload=True)
-itchat.run()
+# itchat.auto_login(hotReload=True)
+itchat.run(True)
