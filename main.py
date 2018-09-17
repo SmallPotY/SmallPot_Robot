@@ -5,6 +5,20 @@ import SQL
 import model
 import datetime
 import os
+from apscheduler.schedulers.blocking import BlockingScheduler
+from apscheduler.triggers.cron import CronTrigger
+from apscheduler.triggers.interval import IntervalTrigger
+from apscheduler.triggers.date import DateTrigger
+from apscheduler.triggers.base import BaseTrigger
+import logging
+
+"""错误日志"""
+logging.basicConfig(level=logging.INFO,
+                    format='%(asctime)s %(filename)s[line:%(lineno)d] %(levelname)s %(message)s',
+                    datefmt='%Y-%m-%d %H:%M:%S',
+                    filename='log.txt',
+                    filemode='a')
+
 # 处理文本类消息
 # 包括文本、位置、名片、通知、分享
 # @itchat.msg_register([TEXT, MAP, CARD, NOTE, SHARING])
@@ -55,12 +69,11 @@ def change_time(input_time):
     return result
 
 
-
 @itchat.msg_register(TEXT, isGroupChat=True)
 def text_reply(msg):
     Content = msg['Text']
     NickName = msg['User']['NickName']
-    if NickName in ['搬仓管理群','华中管理层沟通群','15号仓天图查询群']:
+    if NickName in ['搬仓管理群', '华中管理层沟通群', '15号仓天图查询群']:
         if '查询进度=' in Content:
             brand = Content.replace("查询进度=", "")
             itchat.send('{}入库进度查询中'.format(brand), msg['FromUserName'])
@@ -74,16 +87,15 @@ def text_reply(msg):
 
             batch = batch.split('.')
 
-
-            if len(batch) !=3:
+            if len(batch) != 3:
                 itchat.send("查询参数不符，参数格式：开始时间.结束时间.类型", msg['FromUserName'])
                 return
 
             btime = change_time(batch[0])
             etime = change_time(batch[1])
 
-            print(btime,etime)
-            return_content = query.query_ck(btime,etime,batch[2])
+            print(btime, etime)
+            return_content = query.query_ck(btime, etime, batch[2])
             itchat.send(return_content, msg['FromUserName'])
 
         if '查询产量=' in Content:
@@ -95,23 +107,21 @@ def text_reply(msg):
                 itchat.send("查询参数不符，参数格式：开始时间.结束时间.操作类型", msg['FromUserName'])
                 return
 
-            btime=change_time(work_type[0])
-            etime=change_time(work_type[1])
+            btime = change_time(work_type[0])
+            etime = change_time(work_type[1])
 
             itchat.send("{}至{},{}产量查询中".format(btime, etime, work_type[2]), msg['FromUserName'])
 
             fname = datetime.datetime.now()
             fname = fname.strftime('%Y%m%d%H%I%M%S') + ".png"
 
-            n = model.yield_type(btime, etime, work_type[2], fname,NickName)
-            
+            n = model.yield_type(btime, etime, work_type[2], fname, NickName)
+
             if n == "操作类型不存在！目前可供查询：收货,上架,拣货,包装,盘点,移库":
                 itchat.send(n, msg['FromUserName'])
             else:
                 itchat.send_image(fname, msg['FromUserName'])
                 os.remove(fname)
-
-
 
         if '拣货差异=' in Content:
             batch = Content.replace("拣货差异=", "")
@@ -119,15 +129,15 @@ def text_reply(msg):
 
             batch = batch.split('.')
 
-            if len(batch) !=2:
+            if len(batch) != 2:
                 itchat.send("查询参数不符，参数格式：开始时间.结束时间", msg['FromUserName'])
                 return
-                
+
             btime = batch[0]
             etime = batch[1]
 
-            row = query.chayi(btime,etime)
-            if len(row)==1:
+            row = query.chayi(btime, etime)
+            if len(row) == 1:
                 itchat.send('拣货已完成', msg['FromUserName'])
                 return
             else:
@@ -135,7 +145,6 @@ def text_reply(msg):
                 model.chayi(row)
                 itchat.send_image('CHAYI.PNG', msg['FromUserName'])
                 os.remove('CHAYI.PNG')
-
 
         if '条码库存=' in Content:
             batch = Content.replace("条码库存=", "")
@@ -150,7 +159,7 @@ def text_reply(msg):
                 os.remove('CHAYI.PNG')
 
         if '查询退供=' in Content:
-            brand = Content.replace("查询退供=","")
+            brand = Content.replace("查询退供=", "")
             query = SQL.WMS(NickName)
             row = query.query_tg(brand)
             if len(row) == 1:
@@ -161,7 +170,7 @@ def text_reply(msg):
                 os.remove('CHAYI.PNG')
 
         if '未收汇总=' in Content:
-            day = int(Content.replace("未收汇总=",""))
+            day = int(Content.replace("未收汇总=", ""))
             query = SQL.WMS(NickName)
             row = query.yanshou(day=day)
 
@@ -171,7 +180,7 @@ def text_reply(msg):
             os.remove('CHAYI.PNG')
 
         if '待上架汇总=' in Content:
-            day = int(Content.replace("待上架汇总=",""))
+            day = int(Content.replace("待上架汇总=", ""))
             query = SQL.WMS(NickName)
             row = query.shangjia(day)
 
@@ -180,11 +189,47 @@ def text_reply(msg):
             itchat.send_image('CHAYI.PNG', msg['FromUserName'])
             os.remove('CHAYI.PNG')
 
+        if Content == '备份库存':
+            file = datetime.datetime.now().strftime('%Y%m%d%H%I%M%S')
 
-itchat.auto_login(enableCmdQR=2)
+            itchat.send('正在备份库存数据，请停止其它查询操作', msg['FromUserName'])
+            model.bf(NickName, file)
+            itchat.send_file('backups/' + file + '.xlsx', msg['FromUserName'])
+            itchat.send('备份完成', msg['FromUserName'])
+
+
+# itchat.auto_login(enableCmdQR=2)
 # 在auto_login()里面提供一个True，即hotReload=True
 # 即可保留登陆状态
 # 即使程序关闭，一定时间内重新开启也可以不用重新扫码
 # itchat.auto_login(hotReload=True)
 # itchat.auto_login(hotReload=True)
-itchat.run(True)
+# itchat.run(True)
+
+
+def itchat_run():
+    print('执行启动')
+    itchat.auto_login(enableCmdQR=2)
+    itchat.run(True)
+
+
+def dsbf():
+    print("执行定时任务")
+    itchat.get_chatrooms(update=True)
+    iRoom = itchat.search_chatrooms('搬仓管理群')
+    for room in iRoom:
+        if room['NickName'] == '搬仓管理群':
+            userName = room['UserName']
+            break
+    file = datetime.datetime.now().strftime('%Y%m%d%H%I%M%S')
+    itchat.send('正在备份仓库存数据，请暂时停止查询操作', userName )
+    model.bf('搬仓管理群', file)
+    itchat.send_file('backups/' + file + '.xlsx', userName)
+    itchat.send('备份完成', userName)
+
+
+scheduler = BlockingScheduler()
+scheduler.add_job(func=itchat_run, trigger='date')
+scheduler.add_job(func=dsbf, trigger=CronTrigger(hour=10,minute=33))
+scheduler._logger = logging
+scheduler.start()
