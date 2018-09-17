@@ -484,6 +484,26 @@ class WMS:
             return return_text
 
 
+    def copybf(self):
+        return_text = []
+        sql = """
+        SELECT
+        WAREHOUSE, COMPANY, LOCATION, ITEM, ITEM_DESC, ON_HAND_QTY,
+        IN_TRANSIT_QTY, attribute3,
+        ALLOCATED_QTY, INVENTORY_STS
+        FROM LOCATION_INVENTORY
+        """
+        try:
+            cursor = self.db.cursor()
+            cursor.execute(sql)
+            return_text = cursor.fetchall()
+
+        except:
+            return []
+        finally:
+            self.db.close()
+            return return_text
+
 
 
 if __name__ == '__main__':
