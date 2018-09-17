@@ -2,11 +2,13 @@
 import numpy as np
 import SQL
 import matplotlib as mpl
-mpl.use('Agg')      # 解决部分系统matplotlib无法显示图片的问题
+mpl.use('Agg')
 import matplotlib.pyplot as plt
 import re
 from prettytable import PrettyTable
 from PIL import Image, ImageDraw, ImageFont
+import openpyxl
+import datetime
 
 def yield_type(btime, etime, work_type, fname,NickName):
     lx = {
@@ -52,8 +54,8 @@ def yield_type(btime, etime, work_type, fname,NickName):
     sum_cl = work_type + "总产量:" + str(sum_cl)
     loan_grade = cl
     # 图表字体为华文细黑，字号为15
-    plt.rc('font', family='SimHei', size=20)
-    # plt.rc('font', family='SIMHEI', size=20)   # Linux中字体文件名要用大写 'SIMHEI'
+    plt.rc('font', family='SIMHEI', size=20)
+
     # 创建柱状图，数据源x,y来源，设置颜色，透明度和外边框颜色
     plt.bar(user_list, loan_grade, color='#99CC01', alpha=0.8, align='center', edgecolor='white')
     # 设置x轴标签
@@ -98,12 +100,8 @@ def chayi(row):
     space = 5
 
     # PIL模块中，确定写入到图片中的文本字体
-    
-    font = ImageFont.truetype('simsun.ttc', 24, encoding='utf-8')
-    
-    # linux 中字体要使用绝对路径
-    # font = ImageFont.truetype('/usr/share/fonts/deepin-font-install/SimHei/SIMHEI.TTF', 24, encoding='utf-8')
-    
+    # font = ImageFont.truetype( 15, encoding='utf-8')
+    font = ImageFont.truetype('/usr/share/fonts/deepin-font-install/SimHei/SIMHEI.TTF', 24, encoding='utf-8')
     # Image模块创建一个图片对象
     im = Image.new('RGB', (10, 10), (255, 255, 255))
     # ImageDraw向图片中进行操作，写入文字或者插入线条都可以
@@ -123,7 +121,49 @@ def chayi(row):
 
 
 
+
+def bf(NickName,file):
+    db = SQL.WMS(NickName)
+    data = db.copybf()
+
+
+    filename = file +'.xlsx'
+
+    wb = openpyxl.Workbook()  # 打开文件
+    sheet = wb.active  # 激活sheet表格
+    sheet.title = "华南1仓库存备份"  # 添加sheet表格名称
+
+    sheet.cell(row=1, column=1, value='仓库代码')
+    sheet.cell(row=1, column=2, value='供应商编号')
+    sheet.cell(row=1, column=3, value='货位')
+    sheet.cell(row=1, column=4, value='条码')
+    sheet.cell(row=1, column=5, value='描述')
+    sheet.cell(row=1, column=6, value='在库数量')
+    sheet.cell(row=1, column=7, value='移入数量')
+    sheet.cell(row=1, column=8, value='销售渠道')
+    sheet.cell(row=1, column=9, value='分配数量')
+    sheet.cell(row=1, column=10, value='状态')
+
+    ind = 2
+    for i in data:
+        sheet.cell(row=ind, column=1, value=i[0])
+        sheet.cell(row=ind, column=2, value=i[1])
+        sheet.cell(row=ind, column=3, value=i[2])
+        sheet.cell(row=ind, column=4, value=i[3])
+        sheet.cell(row=ind, column=5, value=i[4])
+        sheet.cell(row=ind, column=6, value=i[5])
+        sheet.cell(row=ind, column=7, value=i[6])
+        sheet.cell(row=ind, column=8, value=i[7])
+        sheet.cell(row=ind, column=9, value=i[8])
+        sheet.cell(row=ind, column=10, value=i[9])
+        ind += 1
+
+    wb.save('backups/'+filename)
+
+
+
+
 if __name__ == '__main__':
-    db = SQL.WMS()
-    row = db.chayi('2018-1-12','2018-7-13')
-    chayi(row)
+    # yield_type('2018-9-6', '2018-9-7', '上架', 'qq','搬仓管理群')
+
+    bf()
